@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+</head>
+<body>
+<script>
+  /*
+  * 1，Promise构造函数接收一个函数作为参数，该函数的两个参数分别是resolve和reject。他们是两个函数，由javascript引擎提供，不用自己部署
+  * */
+  let promise = new Promise(function(resolve, reject){
+    let num = Math.random()
+    if(num > 0.5){
+      resolve(`${num}大于0.5`)
+    }else{
+      reject(`${num}小于0.5`)
+    }
+  })
+  promise.then(function(value){
+    console.log(value)
+  }, function (error) {
+     console.log(error)
+  })
+  /*
+  * 2，then方法可以接收两个回调函数作为参数。第一个回调函数是Promise对象的状态变为resolved时调用，第二个回调函数是Promise对象的状态变为rejectd时调用。其中第二个函数是可选的，不一定要提供。这两个函数都接受Promise对象传出额值作为参数
+  * */
+  function timeout(ms) {
+    return new Promise((resolve, reject) => {
+      setTimeout(resolve, ms, 'done')
+    })
+  }
+  timeout(10000).then((value) => {
+    console.log(value)
+  })
+  /*
+  * 3，Promise新建后就会立即执行
+  * */
+  let promise2 = new Promise(function (resolve, reject) {
+    console.log('Promise')
+    resolve()
+  })
+  promise2.then(function () {
+    console.log('resolved.')
+  })
+  console.log('Hi！')
+  /*
+  * 4，异步加载图片，使用Promise包装一个图片加载的异步操作。如果加载成功，就
+  * */
+  function loadImageAsync(url) {
+    return new Promise(function (resolve, reject) {
+      let image = new Image()
+      image.onload = function () {
+        resolve(image)
+      }
+      image.onerror = function () {
+        reject(new Error('Could not load image at ' + url))
+      }
+      image.src = url
+    })
+  }
+</script>
+</body>
+</html>
