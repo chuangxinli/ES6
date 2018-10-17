@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+</head>
+<body>
+<script>
+  /*
+  * Promise.prototype.finally()
+  * */
+  /*promise
+    .then(result => {})
+    .catch(error => {})
+    .finally(() => {})*/
+
+  /*上面代码中，不管promise最后的状态，在执行完then或catch指定的回调函数以后，都会执行finally方法指定的回调函数。*/
+
+  /*finally方法的回调函数不接受任何参数，这意味着没有办法知道，前面的 Promise 状态到底是fulfilled还是rejected。这表明，finally方法里面的操作，应该是与状态无关的，不依赖于 Promise 的执行结果。*/
+
+  //finally本质上是then方法的特例
+  /*promise.finally(() => {})
+  //等同于
+  promise.then(result => {return result}, error => {throw error})*/
+
+  /*上面代码中，如果不使用finally方法，同样的语句需要为成功和失败两种情况各写一次。有了finally方法，则只需要写一次。*/
+
+  //实现
+
+  /*Promise.prototype.finally = function (callback) {
+    let p = this.constructor
+    return this.then(
+      value => p.resolve(callback()).then(() => value),
+      reason => p.resolve(callback()).then(() => {throw reason})
+    )
+  }*/
+
+  /*上面代码中，不管前面的 Promise 是fulfilled还是rejected，都会执行回调函数callback。
+
+  从上面的实现还可以看到，finally方法总是会返回原来的值。*/
+
+  Promise.resolve(2).then((r) => {console.log(r)}, () => {}).finally(() => {console.log('finally1')})
+  Promise.resolve(2).finally(() => {
+    console.log('finally2')})
+  Promise.reject(3).then(() => {}, (e) => {
+    console.log(e)})
+  Promise.reject(3).finally(() => {console.log('finally3')})
+
+  // 2 finally2 3 finally3 finally1
+</script>
+</body>
+</html>

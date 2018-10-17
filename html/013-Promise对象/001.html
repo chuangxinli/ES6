@@ -45,7 +45,7 @@
   })
   console.log('Hi！')
   /*
-  * 4，异步加载图片，使用Promise包装一个图片加载的异步操作。如果加载成功，就
+  * 4，异步加载图片，使用Promise包装一个图片加载的异步操作。如果加载成功，就调用resolve方法，否则就调用reject方法
   * */
   function loadImageAsync(url) {
     return new Promise(function (resolve, reject) {
@@ -59,6 +59,265 @@
       image.src = url
     })
   }
+  loadImageAsync('../../image/erweima.jpg').then(function(data){
+    console.log(data)
+  }, function (err) {
+    console.log(`err----${err}`)
+  })
+  /*
+  * 5，用Promise对象实现Ajax操作的例子
+  * */
+  let getJSON = function (url) {
+    let promise3 = new Promise(function(resolve, reject){
+      let handler3 = function () {
+        if(this.readyState !== 4){
+          return
+        }
+        if(this.status === 200){
+          resolve(this.response)
+        }else{
+          //reject函数的参数通常是Error对象的实例，表示抛出的错误；resolve函数的参数除了正常的值以外，还有可能是另一个Promise实例
+          /*const p1 = new Promise(function (resolve, reject) {
+            //
+          })
+          const p2 = new Promise(function (resolve, reject) {
+            //
+            resolve(p1)
+          })*/
+          //p1,p2都是Promise实例，但是p2的resolve方法将p1作为参数，即一个异步操作的结果是返回另一个异步操作
+          reject(new Error(this.statusText))
+        }
+      }
+      let client3 = new XMLHttpRequest()
+      client3.open('GET', url)
+      client3.onreadystatechange = handler3
+      client3.responseType = 'json'
+      client3.setRequestHeader('Accept', 'application/json')
+      client3.send()
+    })
+    return promise3
+  }
+  getJSON('http://das.51youpu.com/detector/api/view/ruiya/test/getPaperInfo?system=YOUPU&sid=51227fc8-31e3-4f2e-ba7c-21785190bd6e&uid=1065722645&examId=D729A65D962FC825&schoolId=63').then(function (json) {
+    console.log(json)
+  }, function (error) {
+    console.log(`出错了: ${error}`)
+  })
+  /*
+  * 6，这时p1的状态就会传递给p2，也就是说，p1的状态决定了p2的状态。如果p1的状态是pending，那么p2的回调函数就会等待p1的状态的改变；如果p1的状态已经是resolve或者reject，那么p2的回调函数将会立即执行
+  * */
+  /*p1时一个promise，3秒后变成了rejected。p2的状态在1秒后改变，resolve方法返回的是p1。由于p2返回的是另一个promise，导致p2自己的状态无效了，由p1的状态决定p2的状态。所以，后面的then语句都变成针对后者p1。又过了两秒，p1变成reject，导致出发catch方法制定的回调函数*/
+  let p1 = new Promise(function (resolve, reject) {
+    setTimeout(() => {reject(new Error('fail'))}, 3000)
+    setTimeout(() => {resolve('success!')}, 4000)
+  })
+  let p2 = new Promise(function (resolve, reject) {
+    setTimeout(() => {resolve(p1)}, 1000)
+  })
+  p2.then(result => console.log(result), err => console.log(err,'err')).catch(error => console.log(error, 'error')) //如果有了reject回调函数，catch方法中的代码将不会执行
+  /*
+  * 7，调用resolve或者reject并不会终结Promise的参数函数的执行
+  * */
+  //调用resolve（1）以后，后面的console.log(2)还是会执行，并且会首先打印出来，这时因为立即resolve的promise是在本轮事件循环的末尾执行，总是晚于本轮循环的同步任务
+  new Promise((resolve, reject) => {
+    resolve(1)
+    console.log(2)
+  }).then(r => {
+    console.log(r)
+  })  //2  1
+  /*
+  * 8，一般来说，调用resovle或reject以后，Promise的使命就完成了，后继操作应该放到then方法里面，而不应该直接写在resovle或者reject的后面，所以最好在它们之前加上return语句，这样就不会有意外
+  * */
+  new Promise((resolve, reject) => {
+    return resolve(1)
+    console.log(2)
+  }).then(r => {
+    console.log(r)
+  })  //1
+  /*
+  * 9，Promise.prototype.then()
+  * */
+  /*Promise 实例具有then方法，也就是说，then方法是定义在原型对象Promise.prototype上的。它的作用是为 Promise 实例添加状态改变时的回调函数。前面说过，then方法的第一个参数是resolved状态的回调函数，第二个参数（可选）是rejected状态的回调函数。
+  then方法返回的是一个新的Promise实例（注意，不是原来那个Promise实例）。因此可以采用链式写法，即then方法后面再调用另一个then方法*/
+
+  /*采用链式的then，可以指定一组按照次序调用的回调函数。这时，前一个回调函数，有可能返回的还是一个Promise对象（即有异步操作），这时后一个回调函数，就会等待该Promise对象的状态发生变化，才会被调用。*/
+  getJSON('http://das.51youpu.com/das/paper/manage/getScanExamPaperList?system=YOUPU&sid=51227fc8-31e3-4f2e-ba7c-21785190bd6e&uid=1065722645&currentPage=1&pageSize=10&schoolId=63&roleId=10&gradeCode=0&subjectCode=0').then(function (data) {
+    return getJSON(`http://das.51youpu.com/das/paper/manage/getPaperQuestionDetail?system=YOUPU&sid=51227fc8-31e3-4f2e-ba7c-21785190bd6e&uid=1065722645&paperId=${data.paperList[0].paperId}`)
+  }).then(function funA(result) {
+    console.log(result)
+  }, function funB(err) {
+    console.log(er)
+  })
+  /*上面代码中，第一个then方法指定的回调函数，返回的是另一个Promise对象。这时，第二个then方法指定的回调函数，就会等待这个新的Promise对象状态发生变化。如果变为resolved，就调用funcA，如果状态变为rejected，就调用funcB。*/
+
+  /*
+  * 10，Promise.prototype.catch()
+  * */
+  /*Promise.prototype.catch方法是.then(null, rejection)的别名，用于指定发生错误时的回调函数*/
+
+  /*p.then((val) => console.log('fulfilled:', val))
+   .catch((err) => console.log('rejected', err));
+
+   // 等同于
+   p.then((val) => console.log('fulfilled:', val))
+   .then(null, (err) => console.log("rejected:", err));*/
+  let promise4 = new Promise(function (resolve, reject) {
+    //throw new Error('test')
+    //等价于
+    try{
+      throw new Error('test1')
+    } catch(e) {
+      reject(e)
+    }
+    //比较可以发现reject方法的作用，等同于抛出错误；如果Promise的状态已经变成了resolve，在抛出错误时无效的，因为Promise的状态一旦改变，就会用永远保持该状态，不会在变了
+  })
+  promise4.then(() => {}, (err) => console.log(err, 'err'))
+  promise4.catch(function (error) {
+    console.log(error, 'error')
+  })  //当状态变成reject时  reject对应的回调函数和catch都会执行   如果promise4.then(() => {}, (err) => console.log(err, 'err')).catch(function (error) {console.log(error, 'error')})则catch不会在执行
+
+  /*Promise 对象的错误具有“冒泡”性质，会一直向后传递，直到被捕获为止。也就是说，错误总是会被下一个catch语句捕获*/
+
+  /*getJSON('/post/1.json').then(function(post) {
+    return getJSON(post.commentURL);
+  }).then(function(comments) {
+    // some code
+  }).catch(function(error) {
+    // 处理前面三个Promise产生的错误
+  });*/
+
+  /*上面代码中，一共有三个 Promise 对象：一个由getJSON产生，两个由then产生。它们之中任何一个抛出的错误，都会被最后一个catch捕获。
+
+  一般来说，不要在then方法里面定义 Reject 状态的回调函数（即then的第二个参数），总是使用catch方法。*/
+
+  /*
+  // bad
+   promise
+   .then(function(data) {
+   // success
+   }, function(err) {
+   // error
+   });
+
+   // good
+   promise
+   .then(function(data) { //cb
+   // success
+   })
+   .catch(function(err) {
+   // error
+   });
+   */
+  /*上面代码中，第二种写法要好于第一种写法，理由是第二种写法可以捕获前面then方法执行中的错误，也更接近同步的写法（try/catch）。因此，建议总是使用catch方法，而不使用then方法的第二个参数。*/
+
+  /*跟传统的try/catch代码块不同的是，如果没有使用catch方法指定错误处理的回调函数，Promise 对象抛出的错误不会传递到外层代码，即不会有任何反应。*/
+
+  /*let someAsyncThing = function () {
+    return new Promise(function (resolve, reject) {
+      //下面一行会报错，因为x没有声明
+      resolve(x + 2)
+    })
+  }
+  someAsyncThing().then(() => console.log('everything is great'))
+  setTimeout(() => {console.log(123)}, 2000)*/
+  // Uncaught (in promise) ReferenceError: x is not defined
+  // 123
+  /*上面代码中，someAsyncThing函数产生的 Promise 对象，内部有语法错误。浏览器运行到这一行，会打印出错误提示ReferenceError: x is not defined，但是不会退出进程、终止脚本执行，2 秒之后还是会输出123。这就是说，Promise 内部的错误不会影响到 Promise 外部的代码，通俗的说法就是“Promise 会吃掉错误”。
+
+  这个脚本放在服务器执行，退出码就是0（即表示执行成功）。不过，Node 有一个unhandledRejection事件，专门监听未捕获的reject错误，上面的脚本会触发这个事件的监听函数，可以在监听函数里面抛出错误。*/
+
+  /*process.on('unhandledRejection', function (err, p) {
+   throw err;
+   });*/
+
+  /*上面代码中，unhandledRejection事件的监听函数有两个参数，第一个是错误对象，第二个是报错的 Promise 实例，它可以用来了解发生错误的环境信息。
+
+   注意，Node 有计划在未来废除unhandledRejection事件。如果 Promise 内部有未捕获的错误，会直接终止进程，并且进程的退出码不为 0。*/
+
+  /*let promise5 = new Promise(function (resolve, reject) {
+    resolve('ok')
+    setTimeout(function () {
+       throw new Error('test2')
+    }, 0)
+  })
+  promise5.then(function (value) {
+    console.log(value)
+  })*/
+  /*上面代码中，Promise 指定在下一轮“事件循环”再抛出错误。到了那个时候，Promise 的运行已经结束了，所以这个错误是在 Promise 函数体外抛出的，会冒泡到最外层，成了未捕获的错误。
+
+   一般总是建议，Promise 对象后面要跟catch方法，这样可以处理 Promise 内部发生的错误。catch方法返回的还是一个 Promise 对象，因此后面还可以接着调用then方法。*/
+  let promise6 = new Promise(function (resolve, reject) {
+    resolve('ok')
+    setTimeout(function () {
+      throw new Error('test3')
+    }, 0)
+  })
+  promise6.catch(function (err) {
+    console.log(err)
+  }).then(function (value) {
+    console.log(value)
+  })
+
+  let someAsyncThing2 = function () {
+    return new Promise(function (resolve, reject) {
+      //下面一行会报错，因为x没有声明
+      resolve(x + 2)
+    })
+  }
+  someAsyncThing2().catch(function (err) {
+    console.log(`oh no`, err)
+  }).then(function () {
+    console.log('carry on');
+  })
+  setTimeout(() => {console.log(123)}, 2000)
+
+  /*上面代码运行完catch方法指定的回调函数，会接着运行后面那个then方法指定的回调函数。如果没有报错，则会跳过catch方法。*/
+
+
+  /*Promise.resolve()
+   .catch(function(error) {
+   console.log('oh no', error);
+   })
+   .then(function() {
+   console.log('carry on');
+   });
+   // carry on*/
+  
+  /*上面的代码因为没有报错，跳过了catch方法，直接执行后面的then方法。此时，要是then方法里面报错，就与前面的catch无关了。
+
+   catch方法之中，还能再抛出错误。*/
+  let someAsyncThing3 = function () {
+    return new Promise(function (resolve, reject) {
+      resolve(x + 2)
+    })
+  }
+  someAsyncThing3().then(function () {
+    return someAsyncThing3()
+  }).catch(function (err) {
+    console.log(`oh no no`, err)
+    //下面一行会报错，因为y没有声明
+    y + 2
+  }).then(function () {
+    console.log('carry on')
+  })
+  /*上面代码中，catch方法抛出一个错误，因为后面没有别的catch方法了，导致这个错误不会被捕获，也不会传递到外层。如果改写一下，结果就不一样了。*/
+  let someAsyncThing4 = function () {
+    return new Promise(function (resolve, reject) {
+      resolve(j + 2)
+    })
+  }
+  someAsyncThing4().then(function () {
+    return someAsyncThing3()
+  }).catch(function (err) {
+    console.log(`oh no no`, err)
+    //下面一行会报错，因为y没有声明
+    y + 2
+  }).then(function () {
+    console.log('carry on')
+  }).catch(function (e) {
+    console.log(e, 'y')
+  })
+
+  
 </script>
 </body>
 </html>
